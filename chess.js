@@ -289,6 +289,9 @@ function Piece(board, grid_x, grid_y, piece_index, team){
 };
 
 Piece.prototype.move = function(grid_x, grid_y) {
+	if(this instanceof Pawn){
+		if (this.firstMove) {this.firstMove = false;}
+	}
 	this.board.deselect();
 
 	this.board.grid[this.gv.x][this.gv.y].piece = null;
@@ -302,7 +305,6 @@ Piece.prototype.move = function(grid_x, grid_y) {
 Piece.prototype.attemptMove = function(gx,gy) {
 	var gv = new GridVector(gx,gy);
 	if(this.canMoveTo(gv)){
-		console.log('aaaaah')
 		this.move(gx,gy);
 	}
 
@@ -328,7 +330,6 @@ Piece.prototype.pathObstructed = function(dist,dir){
 			}
 		}
 	}
-	//console.log('no obstruction for '+this.symbol);
 	return false;
 };
 Piece.prototype.canMoveTo = function(other) {
@@ -341,7 +342,7 @@ Piece.prototype.canMoveTo = function(other) {
 	var dist = gs[0];
 	var dir = gs[1];
 	if (dir & this.directions && !this.pathObstructed(dist,dir)){
-		console.log(this.symbol+' can move here');
+
 		return true;
 	}
 
@@ -356,25 +357,70 @@ Piece.prototype.draw = function(x,y) {
 
 function Pawn(board, grid_x, grid_y, team){
 	Piece.call(this, board, grid_x, grid_y, PIECE.pawn, team);
-	this.directions = DIRECTION.ver;
+	this.firstMove = true;
 }
 Pawn.prototype = Object.create(Piece.prototype);
 Pawn.prototype.constructor = Piece;
+Pawn.prototype.pathObstructed = function(dist,dir){
+	
+	var dir_v = GridVector.prototype.dirVector(dir);
+	var sgn = dist>0 ? 1 : -1; 
 
+	for (var i=1; i<=Math.abs(dist); i++){
+		var gv = this.gv.copy();
+		var di = dir_v.copy();
+		di.mult( i * sgn );
+		gv.add( di );
+
+		if (dir & (DIRECTION.eqdiag | DIRECTION.opdiag)){
+			if (this.board.grid[gv.x][gv.y].piece != null){
+				if(this.board.grid[gv.x][gv.y].piece.team != this.team){
+
+					return false;
+				}
+			}
+			return true;
+		}
+		else if (this.board.grid[gv.x][gv.y].piece != null) {
+			return true
+		}
+
+	}
+	return false;
+};
 Pawn.prototype.canMoveTo = function(other) {
 	var gs = this.gv.gridSeparation(other);
 	var dist = gs[0];
 	var dir = gs[1];
 
-	if (dir & this.directions){
+	if (dir == DIRECTION.ver){
+		if (((dist==-1 && this.team == TEAM.white) || 
+			(dist== 1 && this.team == TEAM.black) || 
+			(this.firstMove && (dist==-2 && this.team == TEAM.white) || 
+			(dist== 2 && this.team == TEAM.black)) ) && 
+			!this.pathObstructed(dist,dir) ){
 
-		if (dist==-1 && this.team == TEAM.white || 
-			dist==1 && this.team == TEAM.black
-			&& !this.pathObstructed(dist,dir) ){
-			console.log(this.symbol+' can move here');
-			return true;
+				return true;
 		}
 	}
+	else if (dir == DIRECTION.eqdiag){
+		if (((dist==-1 && this.team == TEAM.white) || 
+			(dist== 1 && this.team == TEAM.black)) && 
+			!this.pathObstructed(dist,dir)){
+
+				return true;
+		}
+
+	}
+	else if (dir == DIRECTION.opdiag){
+		if (((dist== 1 && this.team == TEAM.white) || 
+			(dist==-1 && this.team == TEAM.black)) && 
+			!this.pathObstructed(dist,dir)){
+
+				return true;
+		}
+	}
+
 	return false;
 };
 
@@ -382,7 +428,7 @@ function King(board, grid_x, grid_y, team){
 	Piece.call(this, board, grid_x, grid_y, PIECE.king, team);
 	this.directions = DIRECTION.ver | DIRECTION.hor | 
 		DIRECTION.opdiag | DIRECTION.eqdiag;
-}
+};
 King.prototype = Object.create(Piece.prototype);
 King.prototype.constructor = Piece;
 
@@ -394,7 +440,7 @@ King.prototype.canMoveTo = function(other) {
 	if (dir & this.directions){
 
 		if (Math.abs(dist)==1 && !this.pathObstructed(dist,dir)){
-			console.log(this.symbol+' can move here');
+
 			return true;
 		}
 	}
@@ -451,26 +497,6 @@ function initialSetup(some_params_here){
 		var mouse_x = event.clientX  - rect.left;
 		var mouse_y = event.clientY - rect.top;
 		board.clickSquare(mouse_x,mouse_y);
-
-		// var t = board.cartesianToGrid(mouse_x,mouse_y)
-		// if (t){
-		// 	var other  = new GridVector(t[0],t[1]);
-		// 	// var t = p1.gv.gridSeparation(other);
-		// 	console.log('');
-		// 	p1.canMoveTo(other)
-		// 	r1.canMoveTo(other)
-		// 	b1.canMoveTo(other)
-		// 	k1.canMoveTo(other)
-		// 	n1.canMoveTo(other)
-		// 	q1.canMoveTo(other)
-
-		// 	p2.canMoveTo(other)
-		// 	r2.canMoveTo(other)
-		// 	b2.canMoveTo(other)
-		// 	k2.canMoveTo(other)
-		// 	n2.canMoveTo(other)
-		// 	q2.canMoveTo(other)
-		// }
 	});
 
 	if (allowBadHighlighting){
