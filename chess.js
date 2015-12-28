@@ -152,6 +152,10 @@ function Board(x,y, square_size){
 	this.clicked 	= [0,0]; 
 	this.hovered 	= [0,0];
 	this.sq_size 	= square_size;
+	this.pieces 	={
+		white:[],
+		black:[]	
+	};
 	for (var r=0; r<8; r++){
 		this.grid[r] = [];
 		for(var c=0;c<8;c++){var dark = (r+c)%2 == 0 ? false : true;
@@ -283,6 +287,7 @@ function Piece(board, grid_x, grid_y, piece_index, team){
 	this.symbol 	= SYMBOL[piece_index];
 	this.team		= team;
 	this.directions = DIRECTION.none;
+	this.alive		= true;
 	this.genMoves	= false; // has this piece's moves been generated
 
 	board.grid[grid_x][grid_y].piece = this;
@@ -292,6 +297,7 @@ Piece.prototype.move = function(grid_x, grid_y) {
 	if(this instanceof Pawn){
 		if (this.firstMove) {this.firstMove = false;}
 	}
+
 	this.board.deselect();
 
 	this.board.grid[this.gv.x][this.gv.y].piece = null;
@@ -301,6 +307,9 @@ Piece.prototype.move = function(grid_x, grid_y) {
 	
 	this.board.grid[grid_x][grid_y].piece = this;
 	this.board.drawSquare(this.board.grid[grid_x][grid_y]);
+
+
+	TURN = this.team == TEAM.white ? TEAM.black: TEAM.white;
 };
 Piece.prototype.attemptMove = function(gx,gy) {
 	var gv = new GridVector(gx,gy);
@@ -311,6 +320,7 @@ Piece.prototype.attemptMove = function(gx,gy) {
 
 };
 Piece.prototype.pathObstructed = function(dist,dir){
+	if (Math.abs(dist)>7) {return false;}
 	if (dir == DIRECTION.knight) {
 		return false;
 	}
@@ -332,9 +342,11 @@ Piece.prototype.pathObstructed = function(dist,dir){
 	}
 	return false;
 };
-Piece.prototype.canMoveTo = function(other) {
+Piece.prototype.canMoveTo = function(other,kingsearch) {
+	if (typeof kingsearch === 'undefined'){kingsearch = false; }
+	if (kingsearch) console.log('FOR THE KING!');
 	if (this.board.grid[other.x][other.y].piece != null){
-		if (this.board.grid[other.x][other.y].piece.team == this.team){
+		if (this.board.grid[other.x][other.y].piece.team == this.team && !kingsearch){
 			return false;
 		}
 	}
@@ -342,10 +354,9 @@ Piece.prototype.canMoveTo = function(other) {
 	var dist = gs[0];
 	var dir = gs[1];
 	if (dir & this.directions && !this.pathObstructed(dist,dir)){
-
 		return true;
 	}
-
+	if (kingsearch) console.log('King has '+this.symbol+'s permission');
 	return false;
 };
 
@@ -362,7 +373,7 @@ function Pawn(board, grid_x, grid_y, team){
 Pawn.prototype = Object.create(Piece.prototype);
 Pawn.prototype.constructor = Piece;
 Pawn.prototype.pathObstructed = function(dist,dir){
-	
+	// Separate method to prevent forward attacks, allow diagonal attacks, etc
 	var dir_v = GridVector.prototype.dirVector(dir);
 	var sgn = dist>0 ? 1 : -1; 
 
@@ -373,9 +384,10 @@ Pawn.prototype.pathObstructed = function(dist,dir){
 		gv.add( di );
 
 		if (dir & (DIRECTION.eqdiag | DIRECTION.opdiag)){
+			
 			if (this.board.grid[gv.x][gv.y].piece != null){
 				if(this.board.grid[gv.x][gv.y].piece.team != this.team){
-
+					
 					return false;
 				}
 			}
@@ -386,9 +398,13 @@ Pawn.prototype.pathObstructed = function(dist,dir){
 		}
 
 	}
+
+
 	return false;
 };
-Pawn.prototype.canMoveTo = function(other) {
+Pawn.prototype.canMoveTo = function(other,kingsearch) {
+	if (typeof kingsearch === 'undefined'){kingsearch = false; }
+
 	var gs = this.gv.gridSeparation(other);
 	var dist = gs[0];
 	var dir = gs[1];
@@ -403,34 +419,74 @@ Pawn.prototype.canMoveTo = function(other) {
 				return true;
 		}
 	}
-	else if (dir == DIRECTION.eqdiag){
+	else {
+		return this.canAttack(other);
+	}
+};
+Pawn.prototype.canAttack = function(other,kingsearch) {
+	if (typeof kingsearch === 'undefined'){kingsearch = false; }
+
+	var gs = this.gv.gridSeparation(other);
+	var dist = gs[0];
+	var dir = gs[1];
+	console.log (gs,dist,dir)
+	if (dir == DIRECTION.eqdiag){
+		console.log((dist==-1 && this.team == TEAM.white)||(dist== 1 && this.team == TEAM.black),!this.pathObstructed(dist,dir))
+
 		if (((dist==-1 && this.team == TEAM.white) || 
 			(dist== 1 && this.team == TEAM.black)) && 
-			!this.pathObstructed(dist,dir)){
-
+			(!this.pathObstructed(dist,dir) || kingsearch)){
 				return true;
 		}
 
 	}
 	else if (dir == DIRECTION.opdiag){
+		console.log((dist==1 && this.team == TEAM.white)||(dist==-1 && this.team == TEAM.black),!this.pathObstructed(dist,dir))
 		if (((dist== 1 && this.team == TEAM.white) || 
 			(dist==-1 && this.team == TEAM.black)) && 
-			!this.pathObstructed(dist,dir)){
+			(!this.pathObstructed(dist,dir) || kingsearch)){
 
 				return true;
 		}
 	}
 
 	return false;
-};
 
+};
 function King(board, grid_x, grid_y, team){
 	Piece.call(this, board, grid_x, grid_y, PIECE.king, team);
 	this.directions = DIRECTION.ver | DIRECTION.hor | 
-		DIRECTION.opdiag | DIRECTION.eqdiag;
+					  DIRECTION.opdiag | DIRECTION.eqdiag;
+	this.inCheck 	= false;
 };
 King.prototype = Object.create(Piece.prototype);
 King.prototype.constructor = Piece;
+
+King.prototype.isThreatened = function(other){
+
+	var enemies = [];
+
+	if (this.team==TEAM.white){
+		enemies = this.board.pieces.black;
+	}
+	else{
+		enemies = this.board.pieces.white;
+	}
+
+	for (var i=0; i<enemies.length; i++){
+		var e = enemies[i]
+		if (e instanceof Pawn){
+			if (e.canAttack(other,true)){
+				return true;
+			}
+		}
+		else if(e.canMoveTo(other,true)){
+			return true;
+		}
+	}
+
+	return false;
+};
 
 King.prototype.canMoveTo = function(other) {
 	var gs = this.gv.gridSeparation(other);
@@ -440,7 +496,9 @@ King.prototype.canMoveTo = function(other) {
 	if (dir & this.directions){
 
 		if (Math.abs(dist)==1 && !this.pathObstructed(dist,dir)){
-
+			if(TURN==this.team){
+				return !this.isThreatened(other);
+			}
 			return true;
 		}
 	}
@@ -449,7 +507,7 @@ King.prototype.canMoveTo = function(other) {
 function Queen(board, grid_x, grid_y, team){
 	Piece.call(this, board, grid_x, grid_y, PIECE.queen, team);
 	this.directions = DIRECTION.ver | DIRECTION.hor | 
-		DIRECTION.opdiag | DIRECTION.eqdiag;
+					  DIRECTION.opdiag | DIRECTION.eqdiag;
 };
 Queen.prototype = Object.create(Piece.prototype);
 Queen.prototype.constructor = Piece;
@@ -478,19 +536,36 @@ Rook.prototype.constructor = Piece;
 
 function initialSetup(some_params_here){
 	var board  	= new Board(10,10,50);
-	var p1		= new Pawn(board,4,4,TEAM.black);
-	var r1		= new Rook(board,3,4,TEAM.black);
-	var b1		= new Bishop(board,5,4,TEAM.black);
-	var k1		= new King(board,6,4,TEAM.black);
-	var n1		= new Knight(board,2,4,TEAM.black);
-	var q1		= new Queen(board,1,4,TEAM.black);
 
-	var p2		= new Pawn(board,4,6,TEAM.white);
+	// var p1		= new Pawn(board,4,4,TEAM.black);
+	var k1		= new King(board,6,4,TEAM.black);
+	var r1		= new Rook(board,3,4,TEAM.black);
+	// var b1		= new Bishop(board,5,4,TEAM.black);
+	// var n1		= new Knight(board,2,4,TEAM.black);
+	// var q1		= new Queen(board,1,4,TEAM.black);
+
+	board.pieces.black.push(k1);
+	// board.pieces.black.push(p1);
+	board.pieces.black.push(r1);
+	// board.pieces.black.push(b1);
+	// board.pieces.black.push(n1);
+	// board.pieces.black.push(q1);
+
+	// var p2		= new Pawn(board,4,6,TEAM.white);
 	var r2		= new Rook(board,3,6,TEAM.white);
-	var b2		= new Bishop(board,5,6,TEAM.white);
+	var r22		= new Rook(board,7,6,TEAM.white);
+	// var b2		= new Bishop(board,5,6,TEAM.white);
 	var k2		= new King(board,6,6,TEAM.white);
-	var n2		= new Knight(board,2,6,TEAM.white);
-	var q2		= new Queen(board,1,6,TEAM.white);
+	// var n2		= new Knight(board,2,6,TEAM.white);
+	// var q2		= new Queen(board,1,6,TEAM.white);
+
+	board.pieces.white.push(k2);
+	// board.pieces.white.push(p2);
+	board.pieces.white.push(r2);
+	board.pieces.white.push(r22);
+	// board.pieces.white.push(b2);
+	// board.pieces.white.push(n2);
+	// board.pieces.white.push(q2);
 
 	document.addEventListener('click',function(event){
 		var rect = canvas.getBoundingClientRect();

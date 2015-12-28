@@ -33,3 +33,11 @@ I dislike my method of mouseover-highlighting, it causes too much needless redra
 Drawing pieces currently uses hardcoded numbers which is non-ideal.
 
 A bit inconsistent in choice of function arguments: sometimes using (gvector) some times using (gx,gy) etc. Clean this up.
+
+Doubt there'll be any issues, but be sure to check everything runs smoothly in different browsers.
+
+
+Where to begin next time
+-------------------------
+
+King can currently go to illegal square if it involves taking a piece. Fix this.
