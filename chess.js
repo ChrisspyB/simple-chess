@@ -221,7 +221,13 @@ Board.prototype.clickSquare = function(mouse_x,mouse_y) {
 
 		var new_highlight = this.grid[coord[0]][coord[1]];
 
-		if (new_highlight.piece == null){return;}
+		if (new_highlight.piece == null || new_highlight.piece.team != TURN ){
+			if(old_highlight.piece != null){
+				old_highlight.piece.attemptMove(coord[0],coord[1]);
+			}
+
+			return;
+		}
 
 		if (new_highlight!=old_highlight){
 			new_highlight.clicked = true;
@@ -241,6 +247,10 @@ Board.prototype.clickSquare = function(mouse_x,mouse_y) {
 	}
 
 	return;
+};
+Board.prototype.deselect = function(){
+	this.grid[this.clicked[0]][this.clicked[1]].clicked = false;
+	this.clicked = [];
 };
 
 Board.prototype.drawSquare = function(sq){
@@ -267,7 +277,6 @@ Board.prototype.drawAll = function() {
 
 function Piece(board, grid_x, grid_y, piece_index, team){
 	this.board 		= board; // Board which this piece belongs to.
-	this.gridpos	= [grid_x,grid_y];
 	this.gv 		= new GridVector(grid_x,grid_y);
 	this.pos 		= board.gridToCartesian(grid_x,grid_y);
 	this.type 		= piece_index;
@@ -280,13 +289,27 @@ function Piece(board, grid_x, grid_y, piece_index, team){
 };
 
 Piece.prototype.move = function(grid_x, grid_y) {
+	this.board.deselect();
+
 	this.board.grid[this.gv.x][this.gv.y].piece = null;
+	this.board.drawSquare(this.board.grid[this.gv.x][this.gv.y])
+
 	this.gv.set(grid_x,grid_y);
+	
 	this.board.grid[grid_x][grid_y].piece = this;
+	this.board.drawSquare(this.board.grid[grid_x][grid_y]);
+};
+Piece.prototype.attemptMove = function(gx,gy) {
+	var gv = new GridVector(gx,gy);
+	if(this.canMoveTo(gv)){
+		console.log('aaaaah')
+		this.move(gx,gy);
+	}
+
+
 };
 Piece.prototype.pathObstructed = function(dist,dir){
 	if (dir == DIRECTION.knight) {
-
 		return false;
 	}
 
@@ -300,8 +323,9 @@ Piece.prototype.pathObstructed = function(dist,dir){
 		gv.add( di );
 
 		if (this.board.grid[gv.x][gv.y].piece != null){
-			//console.log('obstruction for '+this.symbol);
-			return true;
+			if (this.board.grid[gv.x][gv.y].piece.team == this.team){
+				return true;
+			}
 		}
 	}
 	//console.log('no obstruction for '+this.symbol);
@@ -409,11 +433,18 @@ Rook.prototype.constructor = Piece;
 function initialSetup(some_params_here){
 	var board  	= new Board(10,10,50);
 	var p1		= new Pawn(board,4,4,TEAM.black);
-	var r1		= new Rook(board,3,6,TEAM.black);
+	var r1		= new Rook(board,3,4,TEAM.black);
 	var b1		= new Bishop(board,5,4,TEAM.black);
 	var k1		= new King(board,6,4,TEAM.black);
 	var n1		= new Knight(board,2,4,TEAM.black);
-	var q1		= new Queen(board,1,2,TEAM.black);
+	var q1		= new Queen(board,1,4,TEAM.black);
+
+	var p2		= new Pawn(board,4,6,TEAM.white);
+	var r2		= new Rook(board,3,6,TEAM.white);
+	var b2		= new Bishop(board,5,6,TEAM.white);
+	var k2		= new King(board,6,6,TEAM.white);
+	var n2		= new Knight(board,2,6,TEAM.white);
+	var q2		= new Queen(board,1,6,TEAM.white);
 
 	document.addEventListener('click',function(event){
 		var rect = canvas.getBoundingClientRect();
@@ -421,18 +452,25 @@ function initialSetup(some_params_here){
 		var mouse_y = event.clientY - rect.top;
 		board.clickSquare(mouse_x,mouse_y);
 
-		var t = board.cartesianToGrid(mouse_x,mouse_y)
-		if (t){
-			var other  = new GridVector(t[0],t[1]);
-			// var t = p1.gv.gridSeparation(other);
-			console.log('');
-			p1.canMoveTo(other)
-			r1.canMoveTo(other)
-			b1.canMoveTo(other)
-			k1.canMoveTo(other)
-			n1.canMoveTo(other)
-			q1.canMoveTo(other)
-		}
+		// var t = board.cartesianToGrid(mouse_x,mouse_y)
+		// if (t){
+		// 	var other  = new GridVector(t[0],t[1]);
+		// 	// var t = p1.gv.gridSeparation(other);
+		// 	console.log('');
+		// 	p1.canMoveTo(other)
+		// 	r1.canMoveTo(other)
+		// 	b1.canMoveTo(other)
+		// 	k1.canMoveTo(other)
+		// 	n1.canMoveTo(other)
+		// 	q1.canMoveTo(other)
+
+		// 	p2.canMoveTo(other)
+		// 	r2.canMoveTo(other)
+		// 	b2.canMoveTo(other)
+		// 	k2.canMoveTo(other)
+		// 	n2.canMoveTo(other)
+		// 	q2.canMoveTo(other)
+		// }
 	});
 
 	if (allowBadHighlighting){
