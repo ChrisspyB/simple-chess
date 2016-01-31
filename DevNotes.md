@@ -39,5 +39,3 @@ Doubt there'll be any issues, but be sure to check everything runs smoothly in d
 
 Where to begin next time
 -------------------------
-
-King can currently go to illegal square if it involves taking a piece. Fix this.

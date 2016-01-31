@@ -319,12 +319,15 @@ Piece.prototype.attemptMove = function(gx,gy) {
 
 
 };
-Piece.prototype.pathObstructed = function(dist,dir){
+Piece.prototype.pathObstructed = function(dist,dir,defend){
+	//If defend is true, piece is not considered obstructed by the first 
+	//friendly piece on the path
+	if (typeof defend === 'undefined'){defend = false; }
+	if (TURN!=this.team){defend = true;}
 	if (Math.abs(dist)>7) {return false;}
 	if (dir == DIRECTION.knight) {
 		return false;
 	}
-
 	var dir_v = GridVector.prototype.dirVector(dir);
 	var sgn = dist>0 ? 1 : -1; 
 
@@ -336,7 +339,8 @@ Piece.prototype.pathObstructed = function(dist,dir){
 
 		if (this.board.grid[gv.x][gv.y].piece != null){
 			if (this.board.grid[gv.x][gv.y].piece.team == this.team){
-				return true;
+				if (defend){defend=false;}
+				else { return true; }
 			}
 		}
 	}
@@ -344,7 +348,7 @@ Piece.prototype.pathObstructed = function(dist,dir){
 };
 Piece.prototype.canMoveTo = function(other,kingsearch) {
 	if (typeof kingsearch === 'undefined'){kingsearch = false; }
-	if (kingsearch) console.log('FOR THE KING!');
+	// if (kingsearch) console.log('FOR THE KING!');
 	if (this.board.grid[other.x][other.y].piece != null){
 		if (this.board.grid[other.x][other.y].piece.team == this.team && !kingsearch){
 			return false;
@@ -356,7 +360,7 @@ Piece.prototype.canMoveTo = function(other,kingsearch) {
 	if (dir & this.directions && !this.pathObstructed(dist,dir)){
 		return true;
 	}
-	if (kingsearch) console.log('King has '+this.symbol+'s permission');
+	// if (kingsearch) console.log('King has '+this.symbol+'s permission');
 	return false;
 };
 
@@ -373,7 +377,7 @@ function Pawn(board, grid_x, grid_y, team){
 Pawn.prototype = Object.create(Piece.prototype);
 Pawn.prototype.constructor = Piece;
 Pawn.prototype.pathObstructed = function(dist,dir){
-	// Separate method to prevent forward attacks, allow diagonal attacks, etc
+
 	var dir_v = GridVector.prototype.dirVector(dir);
 	var sgn = dist>0 ? 1 : -1; 
 
@@ -477,12 +481,14 @@ King.prototype.isThreatened = function(other){
 		var e = enemies[i]
 		if (e instanceof Pawn){
 			if (e.canAttack(other,true)){
+
 				return true;
 			}
 		}
 		else if(e.canMoveTo(other,true)){
 			return true;
 		}
+		// console.log(e.symbol + ' is no threat to king');
 	}
 
 	return false;
@@ -493,15 +499,16 @@ King.prototype.canMoveTo = function(other) {
 	var dist = gs[0];
 	var dir = gs[1];
 
-	if (dir & this.directions){
-
-		if (Math.abs(dist)==1 && !this.pathObstructed(dist,dir)){
+	if ((dir & this.directions) && Math.abs(dist)==1){
+		if (!this.pathObstructed(dist,dir)){
 			if(TURN==this.team){
 				return !this.isThreatened(other);
 			}
+			console.log('enemy '+this.symbol + ' can go here.');
 			return true;
 		}
 	}
+	if (TURN!= this.team){console.log('enemy '+this.symbol + ' cannot go here.');}
 	return false;
 };
 function Queen(board, grid_x, grid_y, team){
@@ -535,6 +542,7 @@ Rook.prototype.constructor = Piece;
 
 
 function initialSetup(some_params_here){
+	// -- Test code -- 
 	var board  	= new Board(10,10,50);
 
 	// var p1		= new Pawn(board,4,4,TEAM.black);
