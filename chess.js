@@ -303,6 +303,19 @@ Piece.prototype.move = function(grid_x, grid_y) {
 	this.board.grid[this.gv.x][this.gv.y].piece = null;
 	this.board.drawSquare(this.board.grid[this.gv.x][this.gv.y])
 
+	var other = this.board.grid[grid_x][grid_y].piece;
+	if (other != null){
+		var piece_list = other.team==TEAM.white
+			? this.board.pieces.white : this.board.pieces.black;
+		for(var i=0; i<piece_list.length; i++){
+			if (other == piece_list[i]){
+				piece_list.splice(i,1);
+				console.log('breaking news')
+				break;
+			}
+		}
+	}
+
 	this.gv.set(grid_x,grid_y);
 	
 	this.board.grid[grid_x][grid_y].piece = this;
